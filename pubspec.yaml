@@ -91,3 +91,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  # 添加 assets 配置
+  assets:
+    - assets/images/photo1.png
+    - assets/images/photo2.png
