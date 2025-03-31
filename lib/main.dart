@@ -3,6 +3,7 @@ import 'dart:html'; // Web 端使用
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:auto_print/firebase_options.dart';
+import 'package:auto_print/widget_fixer.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -57,9 +58,30 @@ class _UploadPageState extends State<UploadPage> {
   // 添加一個 GlobalKey 來引用 RepaintBoundary
   final GlobalKey _previewKey = GlobalKey();
 
+  // 添加新的狀態變量來追踪拖曳
+  Offset _lastFocalPoint = Offset.zero;
+
+  void _resetImageState(ui.Image image) {
+    // 計算初始縮放比例，使圖片適應容器
+    double scaleX = 300 / image.width;
+    double scaleY = 400 / image.height;
+    double initialScale = scaleX < scaleY ? scaleX : scaleY;
+
+    // 計算圖片中心點對齊位置
+    double centerX = (300 - (image.width * initialScale)) / 2;
+    double centerY = (400 - (image.height * initialScale)) / 2;
+
+    setState(() {
+      _userImage = image;
+      _scale = initialScale;
+      _position = Offset(centerX, centerY);
+    });
+  }
+
   // 選擇照片
   Future<void> _selectImage() async {
     final uploadInput = FileUploadInputElement()..accept = 'image/*';
+
     uploadInput.click();
 
     uploadInput.onChange.listen((event) async {
@@ -82,11 +104,13 @@ class _UploadPageState extends State<UploadPage> {
 
         final image = await completer.future;
 
-        setState(() {
-          _userImage = image;
-          _scale = 1.0;
-          _position = Offset.zero;
-        });
+        _resetImageState(image);
+
+        // setState(() {
+        //   _userImage = image;
+        //   _scale = 1.0;
+        //   _position = Offset.zero;
+        // });
       } catch (e) {
         debugPrint('載入圖片錯誤: $e');
         if (mounted) {
@@ -197,6 +221,83 @@ class _UploadPageState extends State<UploadPage> {
     }
   }
 
+  // 修改手勢處理
+  Widget _buildImageEditor({required double height}) {
+    return RepaintBoundary(
+      key: _previewKey,
+      child: GestureDetector(
+        onPanStart: (details) {
+          _isDragging = true;
+          _lastFocalPoint = details.globalPosition;
+        },
+        onPanUpdate: (details) {
+          if (!_isDragging) return;
+
+          setState(() {
+            // 計算相對於上一次的移動距離
+            final delta = details.globalPosition - _lastFocalPoint;
+            _lastFocalPoint = details.globalPosition;
+
+            // 處理位置變化，根據縮放程度調整移動速度
+            final moveSpeed = 1.0 / _scale; // 縮放越大，移動越慢
+            _position += delta * moveSpeed;
+
+            // 限制拖曳範圍
+            if (_userImage != null) {
+              // 計算當前縮放下的圖片尺寸
+              double scaledWidth = _userImage!.width * _scale;
+              double scaledHeight = _userImage!.height * _scale;
+
+              // 計算可移動的範圍
+              double maxX = ((scaledWidth - 300) / 2).abs();
+              double maxY = ((scaledHeight - 400) / 2).abs();
+
+              // 限制位置，考慮縮放因素
+              _position = Offset(
+                _position.dx.clamp(-maxX, maxX),
+                _position.dy.clamp(-maxY, maxY),
+              );
+            }
+          });
+        },
+        onPanEnd: (details) {
+          _isDragging = false;
+        },
+        child: ClipRect(
+          child: Container(
+            width: height / 4 * 3,
+            height: height,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (_userImage != null)
+                  Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..translate(_position.dx, _position.dy)
+                      ..scale(_scale),
+                    child: RawImage(
+                      image: _userImage,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                Image.asset(
+                  _selectedFrame,
+                  width: height / 4 * 3, // 修改這裡以使用動態大小
+                  height: height, // 修改這裡以使用動態大小
+                  fit: BoxFit.fill,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -204,166 +305,122 @@ class _UploadPageState extends State<UploadPage> {
         title: const Text('照片上傳'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 添加相框選擇列表
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            if (!_isUploading) ...[
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final imageHeight = constraints.maxHeight - 66;
 
-              RepaintBoundary(
-                key: _previewKey,
-                child: GestureDetector(
-                  onScaleStart: (details) {
-                    _isDragging = true;
-                  },
-                  onScaleUpdate: (details) {
-                    setState(() {
-                      if (_isDragging) {
-                        _position += details.focalPointDelta;
-                        if (details.scale != 1.0) {
-                          _scale = (_scale * details.scale);
-                        }
-                      }
-                    });
-                  },
-                  onScaleEnd: (details) {
-                    _isDragging = false;
-                  },
-                  child: Container(
-                    width: 300,
-                    height: 400,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      fit: StackFit.passthrough,
-                      children: [
-                        if (_userImage != null)
-                          Positioned(
-                            left: _position.dx,
-                            top: _position.dy,
-                            child: Transform.scale(
-                              scale: _scale,
-                              child: RawImage(
-                                image: _userImage,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
+                  return _buildImageEditor(height: imageHeight)
+                      .padding(const EdgeInsets.only(bottom: 16));
+                },
+              ).flexible(),
+
+              ListView.builder(
+                shrinkWrap: true,
+                scrollDirection: Axis.horizontal,
+                itemCount: _frames.length,
+                itemBuilder: (context, index) {
+                  final frame = _frames[index];
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedFrame = frame;
+                        });
+                      },
+                      child: Container(
+                        width: 50,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: _selectedFrame == frame
+                                ? Colors.blue
+                                : Colors.grey,
+                            width: _selectedFrame == frame ? 2 : 1,
                           ),
-                        Image.asset(
-                          _selectedFrame,
-                          width: 300,
-                          height: 400,
-                          fit: BoxFit.fill,
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _frames.length,
-                  itemBuilder: (context, index) {
-                    final frame = _frames[index];
-                    return Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedFrame = frame;
-                          });
-                        },
-                        child: Container(
-                          width: 80,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: _selectedFrame == frame
-                                  ? Colors.blue
-                                  : Colors.grey,
-                              width: _selectedFrame == frame ? 2 : 1,
-                            ),
-                          ),
-                          child: Image.asset(
-                            frame,
-                            fit: BoxFit.contain,
-                          ),
+                        child: Image.asset(
+                          frame,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              if (_userImage != null) ...[
-                // 添加控制按鈕
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.zoom_in),
-                      onPressed: () {
-                        setState(() {
-                          _scale = (_scale * 1.1);
-                        });
-                      },
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.zoom_out),
-                      onPressed: () {
-                        setState(() {
-                          _scale = (_scale * 0.9);
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: () {
-                        setState(() {
-                          _scale = 1.0;
-                          _position = Offset.zero;
-                        });
-                      },
-                      tooltip: '重置位置和大小',
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              if (_isUploading) ...[
-                CircularProgressIndicator(value: _uploadProgress / 100),
-                const SizedBox(height: 16),
-                Text(_status),
-                const SizedBox(height: 16),
-              ],
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _isUploading ? null : _selectImage,
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('新增照片'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: _isUploading || _userImage == null
-                        ? null
-                        : _uploadCompositeImage,
-                    icon: const Icon(Icons.upload),
-                    label: const Text('上傳合成'),
-                  ),
-                ],
-              ),
+                  );
+                },
+              )
+                  .sizeBox(height: 50)
+                  .padding(const EdgeInsets.only(bottom: 16)), //66
             ],
-          ),
+
+            // 縮放控制按鈕
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.zoom_in),
+                  onPressed: _userImage == null
+                      ? null
+                      : () {
+                          setState(() {
+                            _scale = _scale * 1.1;
+                          });
+                        },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.zoom_out),
+                  onPressed: _userImage == null
+                      ? null
+                      : () {
+                          setState(() {
+                            _scale = _scale * 0.9;
+                          });
+                        },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _userImage == null
+                      ? null
+                      : () {
+                          _resetImageState(_userImage!);
+                        },
+                  tooltip: '重置位置和大小',
+                ),
+              ],
+            ).sizeBox(height: 40),
+            const SizedBox(height: 16), //56
+
+            // 上傳進度指示器
+            if (_isUploading) ...[
+              CircularProgressIndicator(value: _uploadProgress / 100),
+              const SizedBox(height: 16),
+              Text(_status),
+              const SizedBox(height: 16),
+            ],
+
+            // 操作按鈕
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _selectImage,
+                  icon: const Icon(Icons.add_photo_alternate),
+                  label: const Text('選擇照片'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: _isUploading || _userImage == null
+                      ? null
+                      : _uploadCompositeImage,
+                  icon: const Icon(Icons.upload),
+                  label: const Text('上傳照片'),
+                ),
+              ],
+            ).sizeBox(height: 40), //40
+          ],
         ),
       ),
     );
