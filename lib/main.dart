@@ -223,54 +223,55 @@ class _UploadPageState extends State<UploadPage> {
 
   // 修改手勢處理
   Widget _buildImageEditor({required double height}) {
-    return RepaintBoundary(
-      key: _previewKey,
-      child: GestureDetector(
-        onPanStart: (details) {
-          _isDragging = true;
+    return GestureDetector(
+      onPanStart: (details) {
+        _isDragging = true;
+        _lastFocalPoint = details.globalPosition;
+      },
+      onPanUpdate: (details) {
+        if (!_isDragging) return;
+
+        setState(() {
+          // 計算相對於上一次的移動距離
+          final delta = details.globalPosition - _lastFocalPoint;
           _lastFocalPoint = details.globalPosition;
-        },
-        onPanUpdate: (details) {
-          if (!_isDragging) return;
 
-          setState(() {
-            // 計算相對於上一次的移動距離
-            final delta = details.globalPosition - _lastFocalPoint;
-            _lastFocalPoint = details.globalPosition;
+          // 處理位置變化，根據縮放程度調整移動速度
+          final moveSpeed = 1.0 / _scale; // 縮放越大，移動越慢
+          _position += delta * moveSpeed;
 
-            // 處理位置變化，根據縮放程度調整移動速度
-            final moveSpeed = 1.0 / _scale; // 縮放越大，移動越慢
-            _position += delta * moveSpeed;
+          // 限制拖曳範圍
+          if (_userImage != null) {
+            // 計算當前縮放下的圖片尺寸
+            double scaledWidth = _userImage!.width * _scale;
+            double scaledHeight = _userImage!.height * _scale;
 
-            // 限制拖曳範圍
-            if (_userImage != null) {
-              // 計算當前縮放下的圖片尺寸
-              double scaledWidth = _userImage!.width * _scale;
-              double scaledHeight = _userImage!.height * _scale;
+            // 計算可移動的範圍
+            double maxX = ((scaledWidth - 300) / 2).abs();
+            double maxY = ((scaledHeight - 400) / 2).abs();
 
-              // 計算可移動的範圍
-              double maxX = ((scaledWidth - 300) / 2).abs();
-              double maxY = ((scaledHeight - 400) / 2).abs();
-
-              // 限制位置，考慮縮放因素
-              _position = Offset(
-                _position.dx.clamp(-maxX, maxX),
-                _position.dy.clamp(-maxY, maxY),
-              );
-            }
-          });
-        },
-        onPanEnd: (details) {
-          _isDragging = false;
-        },
-        child: ClipRect(
-          child: Container(
-            width: height / 4 * 3,
-            height: height,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-            ),
+            // 限制位置，考慮縮放因素
+            _position = Offset(
+              _position.dx.clamp(-maxX, maxX),
+              _position.dy.clamp(-maxY, maxY),
+            );
+          }
+        });
+      },
+      onPanEnd: (details) {
+        _isDragging = false;
+      },
+      child: Container(
+        width: height / 4 * 3,
+        height: height,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+        ),
+        child: RepaintBoundary(
+          key: _previewKey,
+          child: ClipRect(
             child: Stack(
+              fit: StackFit.expand,
               alignment: Alignment.center,
               children: [
                 if (_userImage != null)
@@ -284,11 +285,11 @@ class _UploadPageState extends State<UploadPage> {
                       fit: BoxFit.contain,
                     ),
                   ),
-                Image.asset(
-                  _selectedFrame,
-                  width: height / 4 * 3, // 修改這裡以使用動態大小
-                  height: height, // 修改這裡以使用動態大小
-                  fit: BoxFit.fill,
+                Positioned.fill(
+                  child: Image.asset(
+                    _selectedFrame,
+                    fit: BoxFit.fill,
+                  ),
                 ),
               ],
             ),
