@@ -57,19 +57,6 @@ class _UploadPageState extends State<UploadPage> {
   // 添加一個 GlobalKey 來引用 RepaintBoundary
   final GlobalKey _previewKey = GlobalKey();
 
-  // 載入背景圖片
-  Future<ui.Image> _loadBackgroundImage() async {
-    final completer = Completer<ui.Image>();
-    AssetImage(
-      _selectedFrame, // 使用選中的相框
-    ).resolve(const ImageConfiguration()).addListener(
-      ImageStreamListener((info, _) {
-        completer.complete(info.image);
-      }),
-    );
-    return completer.future;
-  }
-
   // 選擇照片
   Future<void> _selectImage() async {
     final uploadInput = FileUploadInputElement()..accept = 'image/*';
@@ -224,9 +211,64 @@ class _UploadPageState extends State<UploadPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // 添加相框選擇列表
+
+              RepaintBoundary(
+                key: _previewKey,
+                child: GestureDetector(
+                  onScaleStart: (details) {
+                    _isDragging = true;
+                  },
+                  onScaleUpdate: (details) {
+                    setState(() {
+                      if (_isDragging) {
+                        _position += details.focalPointDelta;
+                        if (details.scale != 1.0) {
+                          _scale = (_scale * details.scale);
+                        }
+                      }
+                    });
+                  },
+                  onScaleEnd: (details) {
+                    _isDragging = false;
+                  },
+                  child: Container(
+                    width: 300,
+                    height: 400,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      fit: StackFit.passthrough,
+                      children: [
+                        if (_userImage != null)
+                          Positioned(
+                            left: _position.dx,
+                            top: _position.dy,
+                            child: Transform.scale(
+                              scale: _scale,
+                              child: RawImage(
+                                image: _userImage,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        Image.asset(
+                          _selectedFrame,
+                          width: 300,
+                          height: 400,
+                          fit: BoxFit.fill,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 height: 100,
                 child: ListView.builder(
+                  shrinkWrap: true,
                   scrollDirection: Axis.horizontal,
                   itemCount: _frames.length,
                   itemBuilder: (context, index) {
@@ -260,71 +302,7 @@ class _UploadPageState extends State<UploadPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              if (_userImage != null)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 編輯區域
-                    Column(
-                      children: [
-                        RepaintBoundary(
-                          key: _previewKey,
-                          child: GestureDetector(
-                            onScaleStart: (details) {
-                              _isDragging = true;
-                            },
-                            onScaleUpdate: (details) {
-                              setState(() {
-                                if (_isDragging) {
-                                  _position += details.focalPointDelta;
-                                  if (details.scale != 1.0) {
-                                    _scale = (_scale * details.scale);
-                                  }
-                                }
-                              });
-                            },
-                            onScaleEnd: (details) {
-                              _isDragging = false;
-                            },
-                            child: Container(
-                              width: 300,
-                              height: 400,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                              ),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                fit: StackFit.passthrough,
-                                children: [
-                                  if (_userImage != null)
-                                    Positioned(
-                                      left: _position.dx,
-                                      top: _position.dy,
-                                      child: Transform.scale(
-                                        scale: _scale,
-                                        child: RawImage(
-                                          image: _userImage,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      ),
-                                    ),
-                                  Image.asset(
-                                    _selectedFrame,
-                                    width: 300,
-                                    height: 400,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const Text('編輯區域'),
-                      ],
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 16),
+
               if (_userImage != null) ...[
                 // 添加控制按鈕
                 Row(
