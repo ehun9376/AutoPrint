@@ -48,6 +48,19 @@ extension Styles on Widget {
     );
   }
 
+  InkWell inkWell({
+    Function()? onTap,
+    Function()? onLongPress,
+    Function()? onDoubleTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      onDoubleTap: onDoubleTap,
+      child: this,
+    );
+  }
+
   GestureDetector gestureDetector({
     GestureTapCallback? onTap,
     GestureTapCallback? onDoubleTap,
