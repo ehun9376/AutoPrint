@@ -9,6 +9,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'widgets/image_editor.dart';
+import 'widgets/filter_selector.dart';
+import 'package:auto_print/constants/filter_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +51,6 @@ class _UploadPageState extends State<UploadPage> {
   ui.Image? _userImage;
   double _scale = 1.0;
   Offset _position = Offset.zero;
-  bool _isDragging = false;
   String _selectedFrame = 'assets/images/photo1.png';
   final List<String> _frames = [
     'assets/images/photo1.png',
@@ -58,8 +60,8 @@ class _UploadPageState extends State<UploadPage> {
   // 添加一個 GlobalKey 來引用 RepaintBoundary
   final GlobalKey _previewKey = GlobalKey();
 
-  // 添加新的狀態變量來追踪拖曳
-  Offset _lastFocalPoint = Offset.zero;
+  // 添加濾鏡相關的狀態
+  FilterType _selectedFilter = FilterType.original;
 
   void _resetImageState(ui.Image image) {
     // 計算初始縮放比例，使圖片適應容器
@@ -221,84 +223,6 @@ class _UploadPageState extends State<UploadPage> {
     }
   }
 
-  // 修改手勢處理
-  Widget _buildImageEditor({required double height}) {
-    return GestureDetector(
-      onPanStart: (details) {
-        _isDragging = true;
-        _lastFocalPoint = details.globalPosition;
-      },
-      onPanUpdate: (details) {
-        if (!_isDragging) return;
-
-        setState(() {
-          // 計算相對於上一次的移動距離
-          final delta = details.globalPosition - _lastFocalPoint;
-          _lastFocalPoint = details.globalPosition;
-
-          // 處理位置變化，根據縮放程度調整移動速度
-          final moveSpeed = 1.0 / _scale; // 縮放越大，移動越慢
-          _position += delta * moveSpeed;
-
-          // 限制拖曳範圍
-          if (_userImage != null) {
-            // 計算當前縮放下的圖片尺寸
-            double scaledWidth = _userImage!.width * _scale;
-            double scaledHeight = _userImage!.height * _scale;
-
-            // 計算可移動的範圍
-            double maxX = ((scaledWidth - 300) / 2).abs();
-            double maxY = ((scaledHeight - 400) / 2).abs();
-
-            // 限制位置，考慮縮放因素
-            _position = Offset(
-              _position.dx.clamp(-maxX, maxX),
-              _position.dy.clamp(-maxY, maxY),
-            );
-          }
-        });
-      },
-      onPanEnd: (details) {
-        _isDragging = false;
-      },
-      child: Container(
-        width: height / 4 * 3,
-        height: height,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-        ),
-        child: RepaintBoundary(
-          key: _previewKey,
-          child: ClipRect(
-            child: Stack(
-              fit: StackFit.expand,
-              alignment: Alignment.center,
-              children: [
-                if (_userImage != null)
-                  Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..translate(_position.dx, _position.dy)
-                      ..scale(_scale),
-                    child: RawImage(
-                      image: _userImage,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                Positioned.fill(
-                  child: Image.asset(
-                    _selectedFrame,
-                    fit: BoxFit.fill,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -313,12 +237,31 @@ class _UploadPageState extends State<UploadPage> {
             if (!_isUploading) ...[
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final imageHeight = constraints.maxHeight - 66;
-
-                  return _buildImageEditor(height: imageHeight)
-                      .padding(const EdgeInsets.only(bottom: 16));
+                  return ImageEditor(
+                    userImage: _userImage,
+                    scale: _scale,
+                    position: _position,
+                    onPositionChanged: (delta) {
+                      setState(() {
+                        _position += delta;
+                      });
+                    },
+                    selectedFrame: _selectedFrame,
+                    selectedFilter: _selectedFilter,
+                    previewKey: _previewKey,
+                  ).padding(const EdgeInsets.only(bottom: 16));
                 },
               ).flexible(),
+
+              FilterSelector(
+                userImage: _userImage,
+                selectedFilter: _selectedFilter,
+                onFilterSelected: (filter) {
+                  setState(() {
+                    _selectedFilter = filter;
+                  });
+                },
+              ),
 
               ListView.builder(
                 shrinkWrap: true,
@@ -362,7 +305,7 @@ class _UploadPageState extends State<UploadPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.zoom_in),
+                  icon: const Icon(Icons.zoom_in, size: 30),
                   onPressed: _userImage == null
                       ? null
                       : () {
@@ -372,7 +315,10 @@ class _UploadPageState extends State<UploadPage> {
                         },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.zoom_out),
+                  icon: const Icon(
+                    Icons.zoom_out,
+                    size: 30,
+                  ),
                   onPressed: _userImage == null
                       ? null
                       : () {
@@ -382,7 +328,7 @@ class _UploadPageState extends State<UploadPage> {
                         },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh, size: 30),
                   onPressed: _userImage == null
                       ? null
                       : () {
