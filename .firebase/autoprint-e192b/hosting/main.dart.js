@@ -33977,7 +33977,7 @@ D(){return"FilterType."+this.b}}
 A.E2.prototype={
 O(a){return new A.up(B.ND,"\u7167\u7247\u4e0a\u50b3",A.aeE(null,null,B.bX,!0),null)}}
 A.wO.prototype={
-al(){return new A.zh(B.h,A.b(["assets/images/photo1.png","assets/images/photo2.png"],t.s),new A.bD(null,t.C),B.jC)}}
+al(){return new A.zh(B.h,A.b(["assets/images/photo1.png","assets/images/photo2.png","assets/images/photo3.png"],t.s),new A.bD(null,t.C),B.jC)}}
 A.zh.prototype={
 Fq(a){var s=300/a.gbG(a),r=400/a.gbl(a),q=s<r?s:r
 this.ag(new A.aab(this,a,q,(300-a.gbG(a)*q)/2,(400-a.gbl(a)*q)/2))},
@@ -34086,7 +34086,7 @@ O(a){var s,r,q,p,o=this,n=null,m=A.av(a).ax,l=m.y2
 m=l==null?m.c:l
 l=t.G
 s=A.b([],l)
-if(!o.d)B.b.K(s,A.b([new A.lP(1,B.fG,new A.Ds(new A.aar(o),n),n),new A.CA(o.r,o.as,new A.aas(o),n),new A.ds(B.fE,A.i1(A.ain(new A.aat(o),2,B.at,!0),50,n),n)],l))
+if(!o.d)B.b.K(s,A.b([new A.lP(1,B.fG,new A.Ds(new A.aar(o),n),n),new A.CA(o.r,o.as,new A.aas(o),n),new A.ds(B.fE,A.i1(A.ain(new A.aat(o),3,B.at,!0),50,n),n)],l))
 r=o.r==null
 q=A.V5(n,B.Ac,n,r?n:new A.aau(o),n,n)
 p=A.V5(n,B.A9,n,r?n:new A.aav(o),n,n)

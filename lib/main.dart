@@ -55,6 +55,7 @@ class _UploadPageState extends State<UploadPage> {
   final List<String> _frames = [
     'assets/images/photo1.png',
     'assets/images/photo2.png',
+    'assets/images/photo3.png',
   ];
 
   // 添加一個 GlobalKey 來引用 RepaintBoundary
