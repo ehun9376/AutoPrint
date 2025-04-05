@@ -66,13 +66,13 @@ class _UploadPageState extends State<UploadPage> {
 
   void _resetImageState(ui.Image image) {
     // 計算初始縮放比例，使圖片適應容器
-    double scaleX = 300 / image.width;
-    double scaleY = 400 / image.height;
+    double scaleX = 257 / image.width;
+    double scaleY = 359 / image.height;
     double initialScale = scaleX < scaleY ? scaleX : scaleY;
 
     // 計算圖片中心點對齊位置
-    double centerX = (300 - (image.width * initialScale)) / 2;
-    double centerY = (400 - (image.height * initialScale)) / 2;
+    double centerX = (257 - (image.width * initialScale)) / 2;
+    double centerY = (359 - (image.height * initialScale)) / 2;
 
     setState(() {
       _userImage = image;

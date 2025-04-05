@@ -29,8 +29,8 @@ class ImageEditor extends StatelessWidget {
         onPositionChanged(details.delta);
       },
       child: Container(
-        width: 300,
-        height: 400,
+        width: 257,
+        height: 359,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey),
         ),
@@ -53,9 +53,11 @@ class ImageEditor extends StatelessWidget {
                             Colors.transparent,
                             BlendMode.srcOver,
                           ),
-                      child: RawImage(
-                        image: userImage,
-                        fit: BoxFit.contain,
+                      child: ClipRect(
+                        child: RawImage(
+                          image: userImage,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
