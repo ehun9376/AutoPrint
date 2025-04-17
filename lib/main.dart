@@ -66,13 +66,14 @@ class _UploadPageState extends State<UploadPage> {
 
   void _resetImageState(ui.Image image) {
     // 計算初始縮放比例，使圖片適應容器
-    double scaleX = 257 / image.width;
-    double scaleY = 359 / image.height;
+    double scaleX = 276 / image.width;
+    double scaleY = 378 / image.height;
+    // 使用較小的縮放比例，確保圖片完整顯示
     double initialScale = scaleX < scaleY ? scaleX : scaleY;
 
     // 計算圖片中心點對齊位置
-    double centerX = (257 - (image.width * initialScale)) / 2;
-    double centerY = (359 - (image.height * initialScale)) / 2;
+    double centerX = (276 - (image.width * initialScale)) / 2;
+    double centerY = (378 - (image.height * initialScale)) / 2;
 
     setState(() {
       _userImage = image;
@@ -154,7 +155,12 @@ class _UploadPageState extends State<UploadPage> {
 
       final metadata = SettableMetadata(
         contentType: 'image/png',
-        customMetadata: {'fileName': fileName},
+        customMetadata: {
+          'fileName': fileName,
+          'originalSize': '${compositeBytes.length}',
+        },
+        // 禁用自動壓縮
+        cacheControl: 'no-transform',
       );
 
       final uploadTask = ref.putData(compositeBytes, metadata);
@@ -213,11 +219,17 @@ class _UploadPageState extends State<UploadPage> {
       final RenderRepaintBoundary boundary = _previewKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
 
-      // 將渲染對象轉換為圖片
-      final image = await boundary.toImage(pixelRatio: 2.0); // 使用2倍像素比以獲得更好的品質
+      // 使用更高的像素比（5.0）以保持原始質量
+      final image = await boundary.toImage(pixelRatio: 5.0);
+
+      // 使用無損壓縮的PNG格式
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
-      return byteData!.buffer.asUint8List();
+      if (byteData == null) {
+        throw Exception('無法獲取圖片數據');
+      }
+
+      return byteData.buffer.asUint8List();
     } catch (e) {
       debugPrint('截圖錯誤: $e');
       rethrow;
